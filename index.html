@@ -1015,8 +1015,8 @@
     width:46px;
     height:46px;
     border-radius:50%;
-    background:rgba(255,255,255,0.12);
-    border:1px solid rgba(255,255,255,0.3);
+    background:rgba(0,0,0,0.55);
+    border:1px solid rgba(255,255,255,0.25);
     color:#fff;
     font-size:22px;
     cursor:pointer;
@@ -1025,6 +1025,7 @@
     justify-content:center;
     z-index:201;
   }
+  .lightbox-nav:hover{background:rgba(0,0,0,0.75);}
   .lightbox-nav.prev{left:16px;}
   .lightbox-nav.next{right:16px;}
   .lightbox-counter{
@@ -3273,6 +3274,27 @@ function wireLightbox(fixtureId, index){
   if(prevBtn) prevBtn.addEventListener('click', () => goTo(index - 1));
   if(nextBtn) nextBtn.addEventListener('click', () => goTo(index + 1));
   document.addEventListener('keydown', onKey);
+
+  const imgEl = overlay.querySelector('.lightbox-img');
+  if(imgEl){
+    let touchStartX = null;
+    let touchStartY = null;
+    imgEl.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, {passive: true});
+    imgEl.addEventListener('touchend', (e) => {
+      if(touchStartX === null) return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)){
+        if(dx < 0) goTo(index + 1);
+        else goTo(index - 1);
+      }
+      touchStartX = null;
+      touchStartY = null;
+    });
+  }
 
   wireCommentsPanelEvents(overlay, () => {
     modalRoot.innerHTML = renderLightboxContent(fixtureId, index);
