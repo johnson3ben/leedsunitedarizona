@@ -2076,6 +2076,11 @@ let editingMeetupId = null;
 let editingTvId = null;
 let expandedPhotosId = null;
 let photosCache = {};
+let photoIdSeq = 0;
+function generatePhotoId(){
+  photoIdSeq = (photoIdSeq + 1) % 1000;
+  return String(Date.now() * 1000 + photoIdSeq);
+}
 let photosLoading = {};
 let ownerPin = null;
 let isUnlocked = false;
@@ -3917,7 +3922,7 @@ function wirePhotoPanelEvents(container){
       for(const file of files){
         try{
           const dataUrl = await compressImage(file);
-          const item = {id: String(Date.now() + Math.floor(Math.random()*1000)), src: dataUrl, caption: ''};
+          const item = {id: generatePhotoId(), src: dataUrl, caption: ''};
           photosCache[id].push(item);
           await savePhotoItem(id, item);
         }catch(err){}
@@ -4408,7 +4413,7 @@ function render(){
       for(const file of files){
         try{
           const dataUrl = await compressImage(file);
-          const item = {id: String(Date.now() + Math.floor(Math.random()*1000)), src: dataUrl, caption: ''};
+          const item = {id: generatePhotoId(), src: dataUrl, caption: ''};
           photosCache[id].push(item);
           await savePhotoItem(id, item);
         }catch(err){}
