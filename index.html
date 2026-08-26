@@ -686,6 +686,9 @@
   .rsvp-btn.rsvp-no.active .rsvp-count{background:rgba(255,255,255,0.25); color:#fff;}
 
   .comments-panel{margin-top:10px;}
+  .discussion-body{padding:20px;}
+  .comments-board{margin-top:0;}
+  .comments-board .comments-list{max-height:none;}
   .comments-toggle-btn{
     background:none;
     border:none;
@@ -1929,6 +1932,7 @@
       <button class="tab" data-tab="photos">Meet up photos</button>
       <button class="tab" data-tab="member">Meet a member</button>
       <button class="tab" data-tab="directory" id="directoryTab" style="display:none;">Member directory</button>
+      <button class="tab" data-tab="discussion">Discussion</button>
       <button class="tab" data-tab="socials">Our socials</button>
     </div>
     <button class="add-btn" id="toggleAddForm" style="display:none;">+ Add fixture</button>
@@ -2017,6 +2021,13 @@
         <tbody id="directoryTableBody"></tbody>
       </table>
     </div>
+  </div>
+
+  <div class="table-card" id="discussionCard" style="display:none;">
+    <div class="table-card-header">
+      <h2 class="table-title">Group discussion</h2>
+    </div>
+    <div class="discussion-body" id="discussionBody"></div>
   </div>
 
   <div class="table-card" id="tableCard" style="display:none;">
@@ -2194,7 +2205,7 @@ let socialsList = [];
 let luaSocialsList = [];
 let showAddSocialForm = null;
 let accessMembers = [];
-let benJProfile = {id: 'benj-self', name: 'Ben J', dob: '', phone: '', points: 0, comment: ''};
+let benJProfile = {id: 'benj-self', name: 'Ben', dob: '', phone: '', points: 0, comment: ''};
 let hasAccess = false;
 let editingScoreId = null;
 let editingMeetupId = null;
@@ -2515,7 +2526,7 @@ function checkAccessGate(){
 function updateLoggedInBanner(){
   const banner = document.getElementById('loggedInBanner');
   if(ownerPin && hasAccess && loggedInName){
-    const member = loggedInName === 'Ben J' ? benJProfile : accessMembers.find(m => m.name === loggedInName);
+    const member = loggedInName === 'Ben' ? benJProfile : accessMembers.find(m => m.name === loggedInName);
     const points = member ? (member.points || 0) : 0;
     const pointsHtml = member && points > 0
       ? `<div class="banner-points-badge">⭐ x${points}</div>`
@@ -2532,14 +2543,14 @@ function updateLoggedInBanner(){
 
 function renderGateNameList(){
   const list = document.getElementById('gateNameList');
-  const entries = [{id: 'owner', name: 'Ben J'}, ...accessMembers.map(m => ({id: m.id, name: m.name}))];
+  const entries = [{id: 'owner', name: 'Ben'}, ...accessMembers.map(m => ({id: m.id, name: m.name}))];
   list.innerHTML = entries.map(e =>
     `<button class="gate-name-btn" data-gate-entry="${e.id}">${escapeHtml(e.name)}</button>`
   ).join('');
   list.querySelectorAll('[data-gate-entry]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-gate-entry');
-      selectedGateEntry = id === 'owner' ? {id: 'owner', name: 'Ben J'} : accessMembers.find(m => m.id === id);
+      selectedGateEntry = id === 'owner' ? {id: 'owner', name: 'Ben'} : accessMembers.find(m => m.id === id);
       const isNewMember = selectedGateEntry.id !== 'owner' && !selectedGateEntry.pin;
       document.getElementById('gateSelectedName').textContent = isNewMember
         ? 'Welcome, ' + selectedGateEntry.name + ' — set up your access'
@@ -2589,7 +2600,7 @@ async function attemptGateSubmit(){
     if(ownerPin && val === ownerPin){
       isUnlocked = true;
       hasAccess = true;
-      loggedInName = 'Ben J';
+      loggedInName = 'Ben';
       errEl.classList.remove('show');
       updateOwnerToggle();
       checkAccessGate();
@@ -2700,14 +2711,14 @@ function updateOwnerToggle(){
     ownerToggle.textContent = 'Set up owner access';
     ownerToggle.classList.remove('unlocked');
   }
-  ownerToggle.style.display = (!ownerPin || loggedInName === 'Ben J') ? '' : 'none';
+  ownerToggle.style.display = (!ownerPin || loggedInName === 'Ben') ? '' : 'none';
   document.getElementById('toggleAddForm').style.display = isUnlocked ? '' : 'none';
   updateAllBtn.style.display = isUnlocked ? '' : 'none';
   const groupNameEl = document.getElementById('groupName');
   groupNameEl.contentEditable = isUnlocked ? 'true' : 'false';
   document.getElementById('manageMembersBtn').style.display = isUnlocked ? '' : 'none';
   document.getElementById('directoryTab').style.display = hasAccess ? '' : 'none';
-  document.getElementById('backupBtn').style.display = (loggedInName === 'Ben J') ? '' : 'none';
+  document.getElementById('backupBtn').style.display = (loggedInName === 'Ben') ? '' : 'none';
 }
 
 function closeModal(){
@@ -2746,7 +2757,7 @@ function openSetupModal(){
       ownerPin = p1;
       isUnlocked = true;
       hasAccess = true;
-      loggedInName = 'Ben J';
+      loggedInName = 'Ben';
       closeModal();
       updateOwnerToggle();
       render();
@@ -2779,7 +2790,7 @@ function openUnlockModal(){
     if(input.value === ownerPin){
       isUnlocked = true;
       hasAccess = true;
-      loggedInName = 'Ben J';
+      loggedInName = 'Ben';
       closeModal();
       updateOwnerToggle();
       render();
@@ -3252,7 +3263,7 @@ function computeAutoNewsBannerText(){
 function renderNewsBanner(){
   const banner = document.getElementById('newsBanner');
   if(!banner) return;
-  const canEdit = loggedInName === 'Ben J';
+  const canEdit = loggedInName === 'Ben';
   const autoText = computeAutoNewsBannerText();
   const isOverride = !!(newsBannerText && newsBannerText.trim());
   const displayText = isOverride ? newsBannerText.trim() : autoText;
@@ -3744,7 +3755,7 @@ function renderDirectorySection(){
   const body = document.getElementById('directoryTableBody');
   const banner = document.getElementById('directoryBirthdayBanner');
   const head = document.getElementById('directoryTableHead');
-  const canEdit = loggedInName === 'Ben J';
+  const canEdit = loggedInName === 'Ben';
   const allMembers = [benJProfile, ...accessMembers];
 
   if(!canEdit){
@@ -3986,6 +3997,21 @@ function currentSeasonMeetupFixtures(){
     .sort((a,b) => (b.date + (b.time||'')).localeCompare(a.date + (a.time||'')));
 }
 
+const DISCUSSION_KEY = 'group-discussion-board';
+
+function renderDiscussionSection(){
+  const body = document.getElementById('discussionBody');
+  body.innerHTML = renderCommentsPanel(DISCUSSION_KEY, 'board');
+  wireCommentsPanelEvents(body, renderDiscussionSection);
+
+  if(!commentsCache[DISCUSSION_KEY] && !commentsLoading[DISCUSSION_KEY]){
+    commentsLoading[DISCUSSION_KEY] = true;
+    loadCommentsFor(DISCUSSION_KEY).then(() => {
+      if(currentTab === 'discussion') renderDiscussionSection();
+    });
+  }
+}
+
 function renderCurrentSeasonGallery(){
   const body = document.getElementById('currentSeasonBody');
   const list = currentSeasonMeetupFixtures();
@@ -4171,14 +4197,17 @@ function renderRsvpPanel(fx){
 }
 
 function renderCommentsPanel(key, variant){
-  const expanded = expandedCommentSections.has(key);
+  const expanded = variant === 'board' ? true : expandedCommentSections.has(key);
   const comments = commentsCache[key] || [];
   const count = comments.length;
-  const panelClass = variant === 'light' ? 'comments-panel lightbox-comments' : 'comments-panel';
-  let html = `<div class="${panelClass}">
+  const panelClass = variant === 'light' ? 'comments-panel lightbox-comments' : (variant === 'board' ? 'comments-panel comments-board' : 'comments-panel');
+  let html = `<div class="${panelClass}">`;
+  if(variant !== 'board'){
+    html += `
     <button class="comments-toggle-btn" data-toggle-comments="${key}">
       <i class="ti ti-message-circle" aria-hidden="true"></i> ${count > 0 ? count + ' comment' + (count === 1 ? '' : 's') : 'Comment'}
     </button>`;
+  }
   if(expanded){
     if(commentsLoading[key] && !commentsCache[key]){
       html += `<p class="photos-loading">Loading comments…</p>`;
@@ -4188,7 +4217,7 @@ function renderCommentsPanel(key, variant){
         ? `<p class="comments-empty">No comments yet — be the first.</p>`
         : comments.map(c => {
             const isMine = loggedInName && c.author === loggedInName;
-            const isBenJ = loggedInName === 'Ben J';
+            const isBenJ = loggedInName === 'Ben';
             if(editingCommentId === c.id){
               return `
                 <div class="comment-row">
@@ -4362,6 +4391,7 @@ function render(){
   const memberCard = document.getElementById('memberCard');
   const socialsCard = document.getElementById('socialsCard');
   const directoryCard = document.getElementById('directoryCard');
+  const discussionCard = document.getElementById('discussionCard');
   const currentSeasonCard = document.getElementById('currentSeasonCard');
   const hideAllArchives = () => {
     currentSeasonCard.style.display = 'none';
@@ -4375,6 +4405,7 @@ function render(){
     memberCard.style.display = 'none';
     socialsCard.style.display = 'none';
     directoryCard.style.display = 'none';
+    discussionCard.style.display = 'none';
     hideAllArchives();
   };
 
@@ -4424,6 +4455,13 @@ function render(){
     directoryCard.style.display = '';
     document.getElementById('toggleAddForm').style.display = 'none';
     renderDirectorySection();
+    return;
+  } else if(currentTab === 'discussion'){
+    hideAllSections();
+    fixturesSection.style.display = 'none';
+    discussionCard.style.display = '';
+    document.getElementById('toggleAddForm').style.display = 'none';
+    renderDiscussionSection();
     return;
   } else {
     hideAllSections();
