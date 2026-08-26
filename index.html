@@ -3390,7 +3390,7 @@ function renderMemberPhotoPreview(photosId){
   }
   return `
     <div class="member-photo-preview" data-open-photo="${photosId}" data-photo-index="0">
-      <img src="${photos[0]}" alt="Photo of this member">
+      <img src="${photoSrc(photos[0])}" alt="Photo of this member">
       ${photos.length > 1 ? `<span class="member-photo-count"><i class="ti ti-photo" aria-hidden="true"></i> ${photos.length}</span>` : ''}
     </div>
   `;
