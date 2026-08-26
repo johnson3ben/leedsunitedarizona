@@ -3868,9 +3868,10 @@ function wirePhotoPanelEvents(container){
       e.stopPropagation();
       const id = btn.getAttribute('data-remove-photo');
       const idx = Number(btn.getAttribute('data-photo-index'));
-      if(photosCache[id]){
+      if(photosCache[id] && photosCache[id][idx]){
+        const item = photosCache[id][idx];
         photosCache[id].splice(idx, 1);
-        await savePhotosFor(id);
+        await deletePhotoItem(id, item.id);
       }
       if(ARCHIVE_IDS.includes(id)){
         renderArchiveGallery(currentArchiveTab);
@@ -3889,10 +3890,11 @@ function wirePhotoPanelEvents(container){
       for(const file of files){
         try{
           const dataUrl = await compressImage(file);
-          photosCache[id].push(dataUrl);
+          const item = {id: String(Date.now() + Math.floor(Math.random()*1000)), src: dataUrl, caption: ''};
+          photosCache[id].push(item);
+          await savePhotoItem(id, item);
         }catch(err){}
       }
-      await savePhotosFor(id);
       hideStatus();
       if(ARCHIVE_IDS.includes(id)){
         renderArchiveGallery(currentArchiveTab);
@@ -3921,9 +3923,11 @@ function wirePhotoPanelEvents(container){
       const text = input.value.trim();
       const list = photosCache[id] || [];
       const current = list[idx];
-      list[idx] = {src: photoSrc(current), caption: text};
       editingCaptionKey = null;
-      await savePhotosFor(id);
+      if(current){
+        current.caption = text;
+        await savePhotoItem(id, current);
+      }
       if(ARCHIVE_IDS.includes(id)){
         renderArchiveGallery(currentArchiveTab);
       } else {
@@ -4377,10 +4381,11 @@ function render(){
       for(const file of files){
         try{
           const dataUrl = await compressImage(file);
-          photosCache[id].push(dataUrl);
+          const item = {id: String(Date.now() + Math.floor(Math.random()*1000)), src: dataUrl, caption: ''};
+          photosCache[id].push(item);
+          await savePhotoItem(id, item);
         }catch(err){}
       }
-      await savePhotosFor(id);
       hideStatus();
       render();
     });
@@ -4390,9 +4395,10 @@ function render(){
       e.stopPropagation();
       const id = btn.getAttribute('data-remove-photo');
       const idx = Number(btn.getAttribute('data-photo-index'));
-      if(photosCache[id]){
+      if(photosCache[id] && photosCache[id][idx]){
+        const item = photosCache[id][idx];
         photosCache[id].splice(idx, 1);
-        await savePhotosFor(id);
+        await deletePhotoItem(id, item.id);
       }
       render();
     });
@@ -4526,30 +4532,72 @@ function photoCaption(p){
   return typeof p === 'string' ? '' : (p.caption || '');
 }
 
-async function loadPhotosFor(fixtureId){
-  if(photosCache[fixtureId]) return photosCache[fixtureId];
-  photosLoading[fixtureId] = true;
-  try{
-    const res = await window.storage.get('photos:' + fixtureId, true);
-    photosCache[fixtureId] = res && res.value ? JSON.parse(res.value) : [];
-  }catch(e){
-    photosCache[fixtureId] = [];
-  }
-  photosLoading[fixtureId] = false;
-  return photosCache[fixtureId];
+function photoItemKey(photosId, photoId){
+  return 'photo-item:' + photosId + ':' + photoId;
 }
 
-async function savePhotosFor(fixtureId){
+async function savePhotoItem(photosId, item){
   try{
-    const result = await window.storage.set('photos:' + fixtureId, JSON.stringify(photosCache[fixtureId] || []), true);
+    const result = await window.storage.set(photoItemKey(photosId, item.id), JSON.stringify({src: item.src, caption: item.caption || ''}), true);
     if(!result){
       showStatus('Could not save photo. Try again.');
       setTimeout(hideStatus, 2500);
     }
+    return result;
   }catch(e){
     showStatus('Could not save photo. Try again.');
     setTimeout(hideStatus, 2500);
+    return null;
   }
+}
+
+async function deletePhotoItem(photosId, photoId){
+  try{
+    await window.storage.delete(photoItemKey(photosId, photoId), true);
+  }catch(e){}
+}
+
+async function loadPhotosFor(photosId){
+  if(photosCache[photosId]) return photosCache[photosId];
+  photosLoading[photosId] = true;
+  try{
+    const prefix = 'photo-item:' + photosId + ':';
+    const listRes = await window.storage.list(prefix, true);
+    const keys = (listRes && listRes.keys) ? listRes.keys : [];
+    if(keys.length > 0){
+      const items = [];
+      for(const key of keys){
+        try{
+          const res = await window.storage.get(key, true);
+          if(res && res.value){
+            const parsed = JSON.parse(res.value);
+            const id = key.slice(prefix.length);
+            items.push({id, src: parsed.src, caption: parsed.caption || ''});
+          }
+        }catch(e){}
+      }
+      items.sort((a,b) => Number(a.id) - Number(b.id));
+      photosCache[photosId] = items;
+    } else {
+      let legacyArr = [];
+      try{
+        const legacyRes = await window.storage.get('photos:' + photosId, true);
+        legacyArr = legacyRes && legacyRes.value ? JSON.parse(legacyRes.value) : [];
+      }catch(e){}
+      const migrated = [];
+      for(let i = 0; i < legacyArr.length; i++){
+        const p = legacyArr[i];
+        const item = {id: String(Date.now() + i), src: photoSrc(p), caption: photoCaption(p)};
+        migrated.push(item);
+        await savePhotoItem(photosId, item);
+      }
+      photosCache[photosId] = migrated;
+    }
+  }catch(e){
+    photosCache[photosId] = [];
+  }
+  photosLoading[photosId] = false;
+  return photosCache[photosId];
 }
 
 function compressImage(file){
