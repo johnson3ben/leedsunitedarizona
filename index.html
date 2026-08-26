@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fixture Tracker</title>
+<title>Leeds United Arizona - Member Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1260,6 +1260,24 @@
     margin-top:4px;
   }
   .tv-info i{font-size:14px;}
+  .tv-block{margin-top:4px;}
+  .tv-edit-row{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .tv-edit-row input{
+    flex:1;
+    min-width:160px;
+    padding:6px 8px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    background:#fff;
+    color:var(--ink);
+  }
   .meetup-block{
     display:flex;
     flex-direction:column;
@@ -2049,6 +2067,7 @@ let benJProfile = {id: 'benj-self', name: 'Ben J', dob: '', phone: '', points: 0
 let hasAccess = false;
 let editingScoreId = null;
 let editingMeetupId = null;
+let editingTvId = null;
 let expandedPhotosId = null;
 let photosCache = {};
 let photosLoading = {};
@@ -3552,14 +3571,13 @@ function renderDirectorySection(){
 
   if(!canEdit){
     banner.style.display = 'none';
-    head.innerHTML = `<tr><th class="col-team">Name</th><th>Contact number</th></tr>`;
+    head.innerHTML = `<tr><th class="col-team">Name</th></tr>`;
     const sortedSimple = allMembers.slice().sort((a,b) => a.name.trim().localeCompare(b.name.trim(), undefined, {sensitivity:'base'}));
     body.innerHTML = sortedSimple.map(m => {
       const points = m.points || 0;
       return `
       <tr>
         <td class="col-team">${escapeHtml(m.name)} <span class="points-badge">⭐ x${points}</span></td>
-        <td>${m.phone ? escapeHtml(m.phone) : '—'}</td>
       </tr>
     `;
     }).join('');
@@ -4297,7 +4315,19 @@ function render(){
           ${rightContent}
         </div>
         <div class="competition">${escapeHtml(fx.competition || '')}</div>
-        ${!result && fx.tv ? `<div class="tv-info"><i class="ti ti-device-tv" aria-hidden="true"></i> ${escapeHtml(fx.tv)}</div>` : ''}
+        ${!result ? `
+        <div class="tv-block">
+          ${editingTvId === fx.id ? `
+            <div class="tv-edit-row">
+              <input type="text" id="tv-input-${fx.id}" value="${escapeHtml(fx.tv || '')}" placeholder="e.g. NBCSN & Peacock (US) · DAZN (Canada)">
+              <button class="save-score-btn" data-save-tv="${fx.id}">Save</button>
+              <button class="comment-action-btn" data-cancel-tv="1">Cancel</button>
+            </div>
+          ` : `
+            ${fx.tv ? `<div class="tv-info"><i class="ti ti-device-tv" aria-hidden="true"></i> ${escapeHtml(fx.tv)}</div>` : ''}
+            ${isUnlocked ? `<button class="comment-action-btn" data-edit-tv="${fx.id}">${fx.tv ? 'Edit TV info' : '+ Add TV info'}</button>` : ''}
+          `}
+        </div>` : ''}
         ${fx.meetup ? `
         <div class="meetup-block">
           <div class="meetup-badge">Supporters meet up</div>
@@ -4454,6 +4484,29 @@ function render(){
       const fx = fixtures.find(f => f.id === id);
       fx.meetupDetails = input.value.trim();
       editingMeetupId = null;
+      await saveFixtures();
+      render();
+    });
+  });
+  listEl.querySelectorAll('[data-edit-tv]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editingTvId = btn.getAttribute('data-edit-tv');
+      render();
+    });
+  });
+  listEl.querySelectorAll('[data-cancel-tv]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editingTvId = null;
+      render();
+    });
+  });
+  listEl.querySelectorAll('[data-save-tv]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-save-tv');
+      const input = document.getElementById('tv-input-' + id);
+      const fx = fixtures.find(f => f.id === id);
+      fx.tv = input.value.trim();
+      editingTvId = null;
       await saveFixtures();
       render();
     });
