@@ -3701,6 +3701,7 @@ function renderDirectorySection(){
         <div class="member-directory-extra">
           ${commentHtml}
           <button class="comment-action-btn" data-edit-details="${m.id}">Edit details</button>
+          ${currentMemberDoc && m.uid === currentMemberDoc.uid ? '' : `<button class="comment-action-btn danger" data-remove-member="${m.id}">Remove</button>`}
         </div>
       </td>
     </tr>
@@ -3770,6 +3771,22 @@ function renderDirectorySection(){
         renderDirectorySection();
         updateLoggedInBanner();
       }
+    });
+  });
+  body.querySelectorAll('[data-remove-member]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-remove-member');
+      const m = findDirectoryMember(id);
+      if(!m) return;
+      const ok = confirm(`Remove ${m.name} from the directory? They will still be able to sign in, but their profile will start fresh.`);
+      if(!ok) return;
+      try{
+        await window.storage.delete(memberDocKey(id), true);
+      }catch(e){}
+      if(membersDirectoryCache){
+        membersDirectoryCache = membersDirectoryCache.filter(mm => mm.uid !== id);
+      }
+      renderDirectorySection();
     });
   });
 }
