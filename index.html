@@ -2017,8 +2017,18 @@ window.firebaseReady = (async () => {
     };
   }catch(e){
     console.error('Firebase failed to initialize', e);
-    document.getElementById('statusMsg').textContent = 'Could not connect to the database. Check your connection and reload.';
-    document.getElementById('statusMsg').style.display = 'block';
+    if(!window.storage){
+      window.storage = {
+        async get(){ return null; },
+        async set(){ return null; },
+        async delete(){ return null; },
+        async list(){ return {keys: []}; }
+      };
+    }
+    try{
+      document.getElementById('statusMsg').textContent = 'Could not connect to the database. Changes may not save until this is fixed. Check the browser console for details.';
+      document.getElementById('statusMsg').style.display = 'block';
+    }catch(e2){}
   }
 })();
 </script>
@@ -4583,7 +4593,26 @@ groupNameEl.addEventListener('keydown', (e) => {
   if(e.key === 'Enter'){ e.preventDefault(); groupNameEl.blur(); }
 });
 
-window.firebaseReady.then(() => { loadData(); });
+let appStarted = false;
+function startApp(){
+  if(appStarted) return;
+  appStarted = true;
+  loadData();
+}
+if(window.firebaseReady && typeof window.firebaseReady.then === 'function'){
+  window.firebaseReady.then(startApp).catch((e) => {
+    console.error('Firebase setup failed, starting anyway:', e);
+    startApp();
+  });
+} else {
+  startApp();
+}
+setTimeout(() => {
+  if(!appStarted){
+    console.error('App did not start within 6 seconds — forcing start.');
+    startApp();
+  }
+}, 6000);
 </script>
 
 </body>
