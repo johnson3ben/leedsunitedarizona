@@ -3610,7 +3610,7 @@ function renderDirectorySection(){
     return;
   }
 
-  const allMembers = membersDirectoryCache.map(m => ({...m, id: m.uid}));
+  const allMembers = membersDirectoryCache.filter(m => !m.removed).map(m => ({...m, id: m.uid}));
 
   if(!canEdit){
     banner.style.display = 'none';
@@ -3778,11 +3778,10 @@ function renderDirectorySection(){
       const id = btn.getAttribute('data-remove-member');
       const m = findDirectoryMember(id);
       if(!m) return;
-      const ok = confirm(`Remove ${m.name} from the directory? They will still be able to sign in, but their profile will start fresh.`);
+      const ok = confirm(`Remove ${m.name} from the directory? Their account will stay active, but they'll no longer appear in the member list.`);
       if(!ok) return;
-      try{
-        await window.storage.delete(memberDocKey(id), true);
-      }catch(e){}
+      m.removed = true;
+      await saveDirectoryMember(id);
       if(membersDirectoryCache){
         membersDirectoryCache = membersDirectoryCache.filter(mm => mm.uid !== id);
       }
