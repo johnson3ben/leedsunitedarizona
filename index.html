@@ -2205,7 +2205,7 @@ let socialsList = [];
 let luaSocialsList = [];
 let showAddSocialForm = null;
 let accessMembers = [];
-let benJProfile = {id: 'benj-self', name: 'Ben', dob: '', phone: '', points: 0, comment: ''};
+let benJProfile = {id: 'benj-self', name: 'Ben J', dob: '', phone: '', points: 0, comment: ''};
 let hasAccess = false;
 let editingScoreId = null;
 let editingMeetupId = null;
@@ -2526,7 +2526,7 @@ function checkAccessGate(){
 function updateLoggedInBanner(){
   const banner = document.getElementById('loggedInBanner');
   if(ownerPin && hasAccess && loggedInName){
-    const member = loggedInName === 'Ben' ? benJProfile : accessMembers.find(m => m.name === loggedInName);
+    const member = loggedInName === 'Ben J' ? benJProfile : accessMembers.find(m => m.name === loggedInName);
     const points = member ? (member.points || 0) : 0;
     const pointsHtml = member && points > 0
       ? `<div class="banner-points-badge">⭐ x${points}</div>`
@@ -2543,14 +2543,14 @@ function updateLoggedInBanner(){
 
 function renderGateNameList(){
   const list = document.getElementById('gateNameList');
-  const entries = [{id: 'owner', name: 'Ben'}, ...accessMembers.map(m => ({id: m.id, name: m.name}))];
+  const entries = [{id: 'owner', name: 'Ben J'}, ...accessMembers.map(m => ({id: m.id, name: m.name}))];
   list.innerHTML = entries.map(e =>
     `<button class="gate-name-btn" data-gate-entry="${e.id}">${escapeHtml(e.name)}</button>`
   ).join('');
   list.querySelectorAll('[data-gate-entry]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-gate-entry');
-      selectedGateEntry = id === 'owner' ? {id: 'owner', name: 'Ben'} : accessMembers.find(m => m.id === id);
+      selectedGateEntry = id === 'owner' ? {id: 'owner', name: 'Ben J'} : accessMembers.find(m => m.id === id);
       const isNewMember = selectedGateEntry.id !== 'owner' && !selectedGateEntry.pin;
       document.getElementById('gateSelectedName').textContent = isNewMember
         ? 'Welcome, ' + selectedGateEntry.name + ' — set up your access'
@@ -2600,7 +2600,7 @@ async function attemptGateSubmit(){
     if(ownerPin && val === ownerPin){
       isUnlocked = true;
       hasAccess = true;
-      loggedInName = 'Ben';
+      loggedInName = 'Ben J';
       errEl.classList.remove('show');
       updateOwnerToggle();
       checkAccessGate();
@@ -2711,14 +2711,14 @@ function updateOwnerToggle(){
     ownerToggle.textContent = 'Set up owner access';
     ownerToggle.classList.remove('unlocked');
   }
-  ownerToggle.style.display = (!ownerPin || loggedInName === 'Ben') ? '' : 'none';
+  ownerToggle.style.display = (!ownerPin || loggedInName === 'Ben J') ? '' : 'none';
   document.getElementById('toggleAddForm').style.display = isUnlocked ? '' : 'none';
   updateAllBtn.style.display = isUnlocked ? '' : 'none';
   const groupNameEl = document.getElementById('groupName');
   groupNameEl.contentEditable = isUnlocked ? 'true' : 'false';
   document.getElementById('manageMembersBtn').style.display = isUnlocked ? '' : 'none';
   document.getElementById('directoryTab').style.display = hasAccess ? '' : 'none';
-  document.getElementById('backupBtn').style.display = (loggedInName === 'Ben') ? '' : 'none';
+  document.getElementById('backupBtn').style.display = (loggedInName === 'Ben J') ? '' : 'none';
 }
 
 function closeModal(){
@@ -2757,7 +2757,7 @@ function openSetupModal(){
       ownerPin = p1;
       isUnlocked = true;
       hasAccess = true;
-      loggedInName = 'Ben';
+      loggedInName = 'Ben J';
       closeModal();
       updateOwnerToggle();
       render();
@@ -2790,7 +2790,7 @@ function openUnlockModal(){
     if(input.value === ownerPin){
       isUnlocked = true;
       hasAccess = true;
-      loggedInName = 'Ben';
+      loggedInName = 'Ben J';
       closeModal();
       updateOwnerToggle();
       render();
@@ -3263,7 +3263,7 @@ function computeAutoNewsBannerText(){
 function renderNewsBanner(){
   const banner = document.getElementById('newsBanner');
   if(!banner) return;
-  const canEdit = loggedInName === 'Ben';
+  const canEdit = loggedInName === 'Ben J';
   const autoText = computeAutoNewsBannerText();
   const isOverride = !!(newsBannerText && newsBannerText.trim());
   const displayText = isOverride ? newsBannerText.trim() : autoText;
@@ -3755,7 +3755,7 @@ function renderDirectorySection(){
   const body = document.getElementById('directoryTableBody');
   const banner = document.getElementById('directoryBirthdayBanner');
   const head = document.getElementById('directoryTableHead');
-  const canEdit = loggedInName === 'Ben';
+  const canEdit = loggedInName === 'Ben J';
   const allMembers = [benJProfile, ...accessMembers];
 
   if(!canEdit){
@@ -4217,7 +4217,7 @@ function renderCommentsPanel(key, variant){
         ? `<p class="comments-empty">No comments yet — be the first.</p>`
         : comments.map(c => {
             const isMine = loggedInName && c.author === loggedInName;
-            const isBenJ = loggedInName === 'Ben';
+            const isBenJ = loggedInName === 'Ben J';
             if(editingCommentId === c.id){
               return `
                 <div class="comment-row">
