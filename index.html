@@ -1637,6 +1637,7 @@
     border-radius:6px;
     cursor:pointer;
   }
+  #resetPinBtn{top:124px;}
   .modal-overlay{
     position:fixed;
     inset:0;
@@ -1916,6 +1917,7 @@
   <button class="owner-toggle" id="ownerToggle">Unlock editing</button>
   <button class="manage-members-btn" id="manageMembersBtn" style="display:none;">Manage members</button>
   <button class="backup-btn" id="backupBtn" style="display:none;">Backup &amp; restore</button>
+  <button class="backup-btn" id="resetPinBtn" style="display:none;">Reset my PIN</button>
 </header>
 
 <div id="newsBanner" class="news-banner"></div>
@@ -2507,6 +2509,16 @@ let expandedRsvpLists = new Set();
 let editingCommentId = null;
 let selectedGateEntry = null;
 
+async function hashPin(pin){
+  try{
+    const enc = new TextEncoder().encode(String(pin));
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }catch(e){
+    return String(pin);
+  }
+}
+
 function checkAccessGate(){
   const gate = document.getElementById('accessGate');
   const content = document.getElementById('siteContent');
@@ -2596,8 +2608,14 @@ async function attemptGateSubmit(){
     errEl.classList.add('show');
     return;
   }
+  const hashedVal = await hashPin(val);
   if(selectedGateEntry.id === 'owner'){
-    if(ownerPin && val === ownerPin){
+    let match = ownerPin && hashedVal === ownerPin;
+    if(!match && ownerPin && val === ownerPin){
+      match = true;
+      try{ await window.storage.set('owner-pin', hashedVal, true); ownerPin = hashedVal; }catch(e){}
+    }
+    if(match){
       isUnlocked = true;
       hasAccess = true;
       loggedInName = 'Ben';
@@ -2615,7 +2633,7 @@ async function attemptGateSubmit(){
         errEl.classList.add('show');
         return;
       }
-      member.pin = val;
+      member.pin = hashedVal;
       member.dob = dob;
       member.phone = phone;
       await saveAccessMembers();
@@ -2626,13 +2644,21 @@ async function attemptGateSubmit(){
       checkAccessGate();
       return;
     }
-    if(member && val === member.pin){
-      hasAccess = true;
-      loggedInName = member.name;
-      errEl.classList.remove('show');
-      updateOwnerToggle();
-      checkAccessGate();
-      return;
+    if(member){
+      let match = hashedVal === member.pin;
+      if(!match && val === member.pin){
+        match = true;
+        member.pin = hashedVal;
+        await saveAccessMembers();
+      }
+      if(match){
+        hasAccess = true;
+        loggedInName = member.name;
+        errEl.classList.remove('show');
+        updateOwnerToggle();
+        checkAccessGate();
+        return;
+      }
     }
   }
   errEl.classList.add('show');
@@ -2719,6 +2745,7 @@ function updateOwnerToggle(){
   document.getElementById('manageMembersBtn').style.display = isUnlocked ? '' : 'none';
   document.getElementById('directoryTab').style.display = hasAccess ? '' : 'none';
   document.getElementById('backupBtn').style.display = (loggedInName === 'Ben') ? '' : 'none';
+  document.getElementById('resetPinBtn').style.display = (loggedInName === 'Ben') ? '' : 'none';
 }
 
 function closeModal(){
@@ -2752,9 +2779,10 @@ function openSetupModal(){
     }
     errEl.classList.remove('show');
     try{
-      const result = await window.storage.set('owner-pin', p1, true);
+      const hashed = await hashPin(p1);
+      const result = await window.storage.set('owner-pin', hashed, true);
       if(!result){ errEl.textContent = 'Could not save PIN. Try again.'; errEl.classList.add('show'); return; }
-      ownerPin = p1;
+      ownerPin = hashed;
       isUnlocked = true;
       hasAccess = true;
       loggedInName = 'Ben';
@@ -2785,9 +2813,15 @@ function openUnlockModal(){
   `;
   document.getElementById('pinUnlockCancel').addEventListener('click', closeModal);
   const input = document.getElementById('pinInputUnlock');
-  const tryUnlock = () => {
+  const tryUnlock = async () => {
     const errEl = document.getElementById('unlockError');
-    if(input.value === ownerPin){
+    const hashed = await hashPin(input.value);
+    let match = hashed === ownerPin;
+    if(!match && input.value === ownerPin){
+      match = true;
+      try{ await window.storage.set('owner-pin', hashed, true); ownerPin = hashed; }catch(e){}
+    }
+    if(match){
       isUnlocked = true;
       hasAccess = true;
       loggedInName = 'Ben';
@@ -2947,7 +2981,7 @@ function renderManageMembersModal(){
     : accessMembers.map(m => `
       <div class="member-manage-row">
         <input type="text" class="mm-name" data-mm-field="name" data-mm-id="${m.id}" value="${escapeHtml(m.name)}">
-        <input type="text" class="mm-pin" data-mm-field="pin" data-mm-id="${m.id}" value="${escapeHtml(m.pin || '')}" placeholder="${m.pin ? '' : 'Not set yet'}">
+        <input type="text" class="mm-pin" data-mm-field="pin" data-mm-id="${m.id}" value="" placeholder="${m.pin ? 'Type to reset' : 'Not set yet'}">
         <button class="mm-save-btn" data-mm-save="${m.id}">Save</button>
         <button class="mm-remove-btn" data-mm-remove="${m.id}">Remove</button>
       </div>`).join('');
@@ -2996,7 +3030,10 @@ function renderManageMembersModal(){
       const member = accessMembers.find(m => m.id === id);
       if(member){
         member.name = nameInput.value.trim() || member.name;
-        member.pin = pinInput.value.trim();
+        const newPin = pinInput.value.trim();
+        if(newPin){
+          member.pin = await hashPin(newPin);
+        }
         await saveAccessMembers();
         renderManageMembersModal();
       }
@@ -3235,6 +3272,51 @@ async function renderBackupModal(mode){
 }
 
 document.getElementById('backupBtn').addEventListener('click', openBackupModal);
+
+function openResetPinModal(){
+  modalRoot.innerHTML = `
+    <div class="modal-overlay" id="resetPinOverlay">
+      <div class="modal-box">
+        <h3>Reset my PIN</h3>
+        <p>Choose a new PIN for your own owner access.</p>
+        <input type="password" id="resetPinInput1" placeholder="New PIN (4+ characters)" autocomplete="off">
+        <input type="password" id="resetPinInput2" placeholder="Confirm new PIN" autocomplete="off">
+        <p class="modal-error" id="resetPinError">PINs must match and be at least 4 characters.</p>
+        <div class="modal-actions">
+          <button class="btn-primary" id="resetPinSaveBtn">Save new PIN</button>
+          <button class="btn-secondary" id="resetPinCancelBtn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('resetPinOverlay').addEventListener('click', (e) => {
+    if(e.target.id === 'resetPinOverlay') closeModal();
+  });
+  document.getElementById('resetPinCancelBtn').addEventListener('click', closeModal);
+  document.getElementById('resetPinSaveBtn').addEventListener('click', async () => {
+    const p1 = document.getElementById('resetPinInput1').value;
+    const p2 = document.getElementById('resetPinInput2').value;
+    const errEl = document.getElementById('resetPinError');
+    if(p1.length < 4 || p1 !== p2){
+      errEl.classList.add('show');
+      return;
+    }
+    errEl.classList.remove('show');
+    try{
+      const hashed = await hashPin(p1);
+      const result = await window.storage.set('owner-pin', hashed, true);
+      if(!result){ errEl.textContent = 'Could not save PIN. Try again.'; errEl.classList.add('show'); return; }
+      ownerPin = hashed;
+      closeModal();
+      showStatus('Your PIN has been updated.');
+      setTimeout(hideStatus, 2500);
+    }catch(e){
+      errEl.textContent = 'Could not save PIN. Try again.';
+      errEl.classList.add('show');
+    }
+  });
+}
+document.getElementById('resetPinBtn').addEventListener('click', openResetPinModal);
 
 async function saveNewsBanner(){
   try{
