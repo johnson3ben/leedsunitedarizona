@@ -630,9 +630,31 @@
 
   .rsvp-panel{
     display:flex;
-    gap:10px;
+    gap:16px;
     margin-top:12px;
     flex-wrap:wrap;
+  }
+  .rsvp-group{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    align-items:flex-start;
+  }
+  .rsvp-who-toggle{
+    background:none;
+    border:none;
+    cursor:pointer;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--leeds-blue);
+    text-decoration:underline;
+    padding:0;
+  }
+  .rsvp-name-list{
+    font-size:12px;
+    color:var(--ink);
+    max-width:260px;
+    line-height:1.4;
   }
   .rsvp-btn{
     display:flex;
@@ -2470,6 +2492,7 @@ let newsBannerText = '';
 let editingNewsBanner = false;
 let commentsLoading = {};
 let expandedCommentSections = new Set();
+let expandedRsvpLists = new Set();
 let editingCommentId = null;
 let selectedGateEntry = null;
 
@@ -3726,20 +3749,21 @@ function renderDirectorySection(){
 
   if(!canEdit){
     banner.style.display = 'none';
-    head.innerHTML = `<tr><th class="col-team">Name</th></tr>`;
+    head.innerHTML = `<tr><th class="col-team">Name</th><th>Meet Ups 26/27</th></tr>`;
     const sortedSimple = allMembers.slice().sort((a,b) => a.name.trim().localeCompare(b.name.trim(), undefined, {sensitivity:'base'}));
     body.innerHTML = sortedSimple.map(m => {
       const points = m.points || 0;
       return `
       <tr>
-        <td class="col-team">${escapeHtml(m.name)} <span class="points-badge">⭐ x${points}</span></td>
+        <td class="col-team">${escapeHtml(m.name)}</td>
+        <td><span class="points-badge">⭐ x${points}</span></td>
       </tr>
     `;
     }).join('');
     return;
   }
 
-  head.innerHTML = `<tr><th class="col-team">Name</th><th>Date of birth</th><th>Contact number</th><th class="col-team">Manage</th></tr>`;
+  head.innerHTML = `<tr><th class="col-team">Name</th><th>Meet Ups 26/27</th><th>Date of birth</th><th>Contact number</th><th class="col-team">Manage</th></tr>`;
 
   const withDays = allMembers.map(m => ({...m, daysUntil: daysUntilBirthday(m.dob)}));
   const upcoming = withDays
@@ -3773,7 +3797,7 @@ function renderDirectorySection(){
     if(editingDetailsId === m.id){
       return `
       <tr>
-        <td colspan="4">
+        <td colspan="5">
           <div class="details-edit-row">
             <div class="details-edit-field">
               <label>Name</label>
@@ -3798,15 +3822,18 @@ function renderDirectorySection(){
 
     return `
     <tr class="${m.daysUntil !== null && m.daysUntil <= 14 ? 'birthday-row' : ''}">
-      <td class="col-team">${escapeHtml(m.name)} <span class="points-badge">⭐ x${points}</span>${m.id === 'benj-self' ? ' <span class="you-tag">(you)</span>' : ''}</td>
+      <td class="col-team">${escapeHtml(m.name)}${m.id === 'benj-self' ? ' <span class="you-tag">(you)</span>' : ''}</td>
+      <td>
+        <div class="member-points-row">
+          <span class="points-badge">⭐ x${points}</span>
+          <button class="points-btn" data-add-point="${m.id}">+1</button>
+          ${points > 0 ? `<button class="points-btn minus" data-remove-point="${m.id}">−1</button>` : ''}
+        </div>
+      </td>
       <td>${m.dob ? escapeHtml(m.dob) : '—'}${birthdayBadge(m.daysUntil)}</td>
       <td>${m.phone ? escapeHtml(m.phone) : '—'}</td>
       <td class="col-team">
         <div class="member-directory-extra">
-          <div class="member-points-row">
-            <button class="points-btn" data-add-point="${m.id}">+1</button>
-            ${points > 0 ? `<button class="points-btn minus" data-remove-point="${m.id}">−1</button>` : ''}
-          </div>
           ${commentHtml}
           <button class="comment-action-btn" data-edit-details="${m.id}">Edit details</button>
         </div>
@@ -4119,17 +4146,26 @@ async function saveCommentsFor(key){
 
 function renderRsvpPanel(fx){
   const rsvps = fx.rsvps || {};
-  const yesCount = Object.values(rsvps).filter(v => v === 'yes').length;
-  const noCount = Object.values(rsvps).filter(v => v === 'no').length;
+  const yesNames = Object.keys(rsvps).filter(n => rsvps[n] === 'yes');
+  const noNames = Object.keys(rsvps).filter(n => rsvps[n] === 'no');
+  const yesCount = yesNames.length;
+  const noCount = noNames.length;
   const myVote = loggedInName ? rsvps[loggedInName] : null;
+
   return `
     <div class="rsvp-panel">
-      <button class="rsvp-btn rsvp-yes ${myVote === 'yes' ? 'active' : ''}" data-rsvp="${fx.id}" data-rsvp-vote="yes">
-        Let's do it 👍${yesCount > 0 ? ` <span class="rsvp-count">${yesCount}</span>` : ''}
-      </button>
-      <button class="rsvp-btn rsvp-no ${myVote === 'no' ? 'active' : ''}" data-rsvp="${fx.id}" data-rsvp-vote="no">
-        I can't make it 👎${noCount > 0 ? ` <span class="rsvp-count">${noCount}</span>` : ''}
-      </button>
+      <div class="rsvp-group">
+        <button class="rsvp-btn rsvp-yes ${myVote === 'yes' ? 'active' : ''}" data-rsvp="${fx.id}" data-rsvp-vote="yes">
+          Let's do it 👍${yesCount > 0 ? ` <span class="rsvp-count">${yesCount}</span>` : ''}
+        </button>
+        ${yesCount > 0 ? `<div class="rsvp-name-list">${yesNames.map(n => escapeHtml(n)).join(', ')}</div>` : ''}
+      </div>
+      <div class="rsvp-group">
+        <button class="rsvp-btn rsvp-no ${myVote === 'no' ? 'active' : ''}" data-rsvp="${fx.id}" data-rsvp-vote="no">
+          I can't make it 👎${noCount > 0 ? ` <span class="rsvp-count">${noCount}</span>` : ''}
+        </button>
+        ${noCount > 0 ? `<div class="rsvp-name-list">${noNames.map(n => escapeHtml(n)).join(', ')}</div>` : ''}
+      </div>
     </div>
   `;
 }
