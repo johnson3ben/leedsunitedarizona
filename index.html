@@ -2511,10 +2511,17 @@ async function loadMemberDoc(uid){
 
 async function saveMemberDoc(doc){
   try{
-    await window.storage.set(memberDocKey(doc.uid), JSON.stringify(doc), true);
+    const result = await window.storage.set(memberDocKey(doc.uid), JSON.stringify(doc), true);
+    if(!result){
+      showStatus('Could not save — check you have permission.');
+      setTimeout(hideStatus, 3000);
+      return false;
+    }
+    return true;
   }catch(e){
     showStatus('Could not save. Try again.');
     setTimeout(hideStatus, 2500);
+    return false;
   }
 }
 
@@ -3588,11 +3595,12 @@ function findDirectoryMember(uid){
 
 async function saveDirectoryMember(uid){
   const m = findDirectoryMember(uid);
-  if(!m) return;
-  await saveMemberDoc(m);
-  if(currentMemberDoc && currentMemberDoc.uid === uid){
+  if(!m) return false;
+  const ok = await saveMemberDoc(m);
+  if(ok && currentMemberDoc && currentMemberDoc.uid === uid){
     currentMemberDoc = m;
   }
+  return ok;
 }
 
 function renderDirectorySection(){
@@ -3778,10 +3786,14 @@ function renderDirectorySection(){
       const id = btn.getAttribute('data-remove-member');
       const m = findDirectoryMember(id);
       if(!m) return;
-      const ok = confirm(`Remove ${m.name} from the directory? Their account will stay active, but they'll no longer appear in the member list.`);
-      if(!ok) return;
+      const confirmed = confirm(`Remove ${m.name} from the directory? Their account will stay active, but they'll no longer appear in the member list.`);
+      if(!confirmed) return;
       m.removed = true;
-      await saveDirectoryMember(id);
+      const saved = await saveDirectoryMember(id);
+      if(!saved){
+        m.removed = false;
+        return;
+      }
       if(membersDirectoryCache){
         membersDirectoryCache = membersDirectoryCache.filter(mm => mm.uid !== id);
       }
