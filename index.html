@@ -2177,10 +2177,23 @@ window.firebaseReady = (async () => {
       return key.replace(/\//g, '__SLASH__');
     }
 
+    function isMemberKey(key){
+      return key.indexOf('member:') === 0;
+    }
+    function memberUidFromKey(key){
+      return key.slice('member:'.length);
+    }
+    function docRefForKey(key){
+      if(isMemberKey(key)){
+        return doc(db, 'members', memberUidFromKey(key));
+      }
+      return doc(db, COLLECTION, sanitizeId(key));
+    }
+
     window.storage = {
       async get(key, shared){
         try{
-          const ref = doc(db, COLLECTION, sanitizeId(key));
+          const ref = docRefForKey(key);
           const snap = await getDoc(ref);
           if(!snap.exists()) return null;
           const data = snap.data();
@@ -2192,7 +2205,7 @@ window.firebaseReady = (async () => {
       },
       async set(key, value, shared){
         try{
-          const ref = doc(db, COLLECTION, sanitizeId(key));
+          const ref = docRefForKey(key);
           await setDoc(ref, {key: key, value: value, shared: !!shared, updatedAt: Date.now()});
           return {key: key, value: value, shared: !!shared};
         }catch(e){
@@ -2203,7 +2216,7 @@ window.firebaseReady = (async () => {
       async delete(key, shared){
         try{
           const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
-          const ref = doc(db, COLLECTION, sanitizeId(key));
+          const ref = docRefForKey(key);
           await deleteDoc(ref);
           return {key: key, deleted: true, shared: !!shared};
         }catch(e){
@@ -2213,13 +2226,27 @@ window.firebaseReady = (async () => {
       },
       async list(prefix, shared){
         try{
-          let snap;
-          if(prefix){
-            const q = query(collection(db, COLLECTION), where('key', '>=', prefix), where('key', '<', prefix + '\uf8ff'));
-            snap = await getDocs(q);
-          } else {
-            snap = await getDocs(collection(db, COLLECTION));
+          if(prefix === 'member:'){
+            const snap = await getDocs(collection(db, 'members'));
+            const keys = [];
+            snap.forEach(d => {
+              const k = d.data().key || ('member:' + d.id);
+              keys.push(k);
+            });
+            return {keys: keys, prefix: prefix, shared: !!shared};
           }
+          if(!prefix){
+            const [portalSnap, membersSnap] = await Promise.all([
+              getDocs(collection(db, COLLECTION)),
+              getDocs(collection(db, 'members'))
+            ]);
+            const keys = [];
+            portalSnap.forEach(d => { const k = d.data().key; if(k) keys.push(k); });
+            membersSnap.forEach(d => { const k = d.data().key || ('member:' + d.id); keys.push(k); });
+            return {keys: keys, prefix: prefix, shared: !!shared};
+          }
+          const q = query(collection(db, COLLECTION), where('key', '>=', prefix), where('key', '<', prefix + '\uf8ff'));
+          const snap = await getDocs(q);
           const keys = [];
           snap.forEach(d => {
             const k = d.data().key;
